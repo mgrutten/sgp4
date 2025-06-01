@@ -575,6 +575,35 @@ impl Constants {
         }
     }
 
+    /// Extract the initial longitude and longitude rate for resonant orbits.
+    ///
+    /// For deep space objects with resonant orbits, returns a tuple containing:
+    /// * The initial longitude (λ₀)
+    /// * The initial longitude rate (λ̇₀ + n), where n is the mean motion
+    ///
+    /// Returns `None` for near-earth objects or non-resonant deep space objects.
+    ///
+    /// # Returns
+    /// * `Some((longitude, longitude_rate))` for resonant deep space objects
+    /// * `None` for near-earth objects or non-resonant deep space objects
+    pub fn initial_lon_lonrate(&self) -> Option<(f64, f64)> {
+        match &self.method {
+            propagator::Method::NearEarth { .. } => None,
+            propagator::Method::DeepSpace { resonant, .. } => match resonant {
+                propagator::Resonant::No { .. } => None,
+                propagator::Resonant::Yes {
+                    lambda_0,
+                    lambda_dot_0,
+                    ..
+                } => {
+                    let lon = *lambda_0;
+                    let lonrate = lambda_dot_0 + self.orbit_0.mean_motion;
+                    Some((lon, lonrate))
+                }
+            },
+        }
+    }
+
     /// Calculates the SGP4 position and velocity predictions
     ///
     /// This is an advanced API which results in marginally faster propagation than `Constants::propagate` in some cases
