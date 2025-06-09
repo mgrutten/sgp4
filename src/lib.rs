@@ -36,14 +36,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(any(feature = "std", feature = "libm")))]
+#[cfg(feature = "alloc")]
+extern crate alloc;#[cfg(not(any(feature = "std", feature = "libm")))]
 compile_error!("either feature \"std\" or feature \"libm\" must be enabled");
 
 #[cfg(all(feature = "std", feature = "libm"))]
 compile_error!("feature \"std\" and feature \"libm\" cannot be enabled at the same time");
-
-#[cfg(feature = "alloc")]
-extern crate alloc;
 
 #[cfg(not(feature = "std"))]
 use num_traits::Float;
@@ -575,11 +573,11 @@ impl Constants {
         }
     }
 
-    /// Extract the initial longitude and longitude rate for resonant orbits.
+    /// Extract the initial mean longitude and mean longitude-rate for resonant orbits.
     ///
-    /// For deep space objects with resonant orbits, returns a tuple containing:
-    /// * The initial longitude (λ₀)
-    /// * The initial longitude rate (λ̇₀ + n), where n is the mean motion
+    /// For deep space objects with geosynchronous resonant orbits, returns a tuple containing:
+    /// * The initial mean longitude in radians (λ₀)
+    /// * The initial mean longitude-rate in radians per minute (λ̇₀ + n), where n is the mean motion
     ///
     /// Returns `None` for near-earth objects or non-resonant deep space objects.
     ///
@@ -596,9 +594,16 @@ impl Constants {
                     lambda_dot_0,
                     ..
                 } => {
-                    let lon = *lambda_0;
-                    let lonrate = lambda_dot_0 + self.orbit_0.mean_motion;
-                    Some((lon, lonrate))
+                    if self.orbit_0.mean_motion < 0.0052359877
+                        && self.orbit_0.mean_motion > 0.0034906585
+                    {
+                        // Geosynchronous.  Not sure if these have the same interpretation otherwise.
+                        let lon = *lambda_0;
+                        let lonrate = lambda_dot_0 + self.orbit_0.mean_motion;
+                        Some((lon, lonrate))
+                    } else {
+                        None
+                    }
                 }
             },
         }
